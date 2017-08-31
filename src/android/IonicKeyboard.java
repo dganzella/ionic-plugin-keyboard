@@ -22,11 +22,26 @@ import android.graphics.Point;
 import android.os.Build;
 
 public class IonicKeyboard extends CordovaPlugin {
-    private OnGlobalLayoutListener list;
-    private View rootView;
 
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
+    }
+
+    private int getSoftbuttonsbarHeight() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            DisplayMetrics metrics = new DisplayMetrics();
+            cordova.getActivity().getWindowManager().getDefaultDisplay().getMetrics(metrics);
+            float density = metrics.density;
+
+            int usableHeight = metrics.heightPixels;
+            cordova.getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+            int realHeight = metrics.heightPixels;
+            if (realHeight > usableHeight)
+                return (int)((realHeight - usableHeight)/density);
+            else
+                return 0;
+        }
+        return 0;
     }
 
     public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
@@ -66,8 +81,8 @@ public class IonicKeyboard extends CordovaPlugin {
                     final float density = dm.density;
 
                     //http://stackoverflow.com/a/4737265/1091751 detect if keyboard is showing
-                    rootView = cordova.getActivity().getWindow().getDecorView().findViewById(android.R.id.content).getRootView();
-                    list = new OnGlobalLayoutListener() {
+                    final View rootView = cordova.getActivity().getWindow().getDecorView().findViewById(android.R.id.content).getRootView();
+                    OnGlobalLayoutListener list = new OnGlobalLayoutListener() {
                         int previousHeightDiff = 0;
                         @Override
                         public void onGlobalLayout() {
@@ -98,7 +113,7 @@ public class IonicKeyboard extends CordovaPlugin {
 
                             int pixelHeightDiff = (int)(heightDiff / density);
                             if (pixelHeightDiff > 100 && pixelHeightDiff != previousHeightDiff) { // if more than 100 pixels, its probably a keyboard...
-                                String msg = "S" + Integer.toString(pixelHeightDiff);
+                                String msg = "S" + Integer.toString(pixelHeightDiff + getSoftbuttonsbarHeight());
                                 result = new PluginResult(PluginResult.Status.OK, msg);
                                 result.setKeepCallback(true);
                                 callbackContext.sendPluginResult(result);
@@ -126,11 +141,5 @@ public class IonicKeyboard extends CordovaPlugin {
         return false;  // Returning false results in a "MethodNotFound" error.
     }
 
-    @Override
-    public void onDestroy() {
-        rootView.getViewTreeObserver().removeOnGlobalLayoutListener(list);
-    }
 
 }
-
-
